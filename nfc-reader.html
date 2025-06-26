@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>อ่านบัตร RFID (NFC)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 30px;
+    }
+    button {
+      font-size: 18px;
+      padding: 10px 20px;
+    }
+    #status {
+      margin-top: 20px;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📶 แตะบัตร NFC</h1>
+  <p>กดปุ่มแล้วแตะบัตร RFID ที่หลังมือถือ</p>
+  <button onclick="startNFC()">เริ่มสแกน</button>
+  <div id="status">ยังไม่ได้เริ่ม</div>
+
+  <script>
+    async function startNFC() {
+      if (!("NDEFReader" in window)) {
+        alert("❌ อุปกรณ์ไม่รองรับ Web NFC (ใช้ Chrome บน Android เท่านั้น)");
+        return;
+      }
+
+      const statusEl = document.getElementById("status");
+      const reader = new NDEFReader();
+
+      try {
+        await reader.scan();
+        statusEl.textContent = "📲 กำลังรอบัตร...";
+
+        reader.onreading = (event) => {
+          const uid = event.serialNumber;
+          statusEl.textContent = `✅ UID: ${uid}`;
+
+          // ส่ง UID ไปยัง Google Sheets ผ่าน Apps Script Web App
+          fetch("https://script.google.com/macros/s/AKfycbzeXK1aABtmbiTVaD6TOwOSSN68wZZm2BUlinDMdzN26Dm_o2vZ5fHLPOgZFNl6NuRZ/exec", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid: uid })
+          })
+          .then(res => res.text())
+          .then(msg => {
+            statusEl.textContent += ` | ส่งแล้ว: ${msg}`;
+          })
+          .catch(err => {
+            statusEl.textContent += ` | ❌ ส่งไม่สำเร็จ: ${err}`;
+          });
+        };
+
+      } catch (err) {
+        statusEl.textContent = "❌ ไม่สามารถเริ่มสแกน NFC ได้: " + err;
+      }
+    }
+  </script>
+</body>
+</html>
