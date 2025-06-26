@@ -45,7 +45,7 @@
           statusEl.textContent = `✅ UID: ${uid}`;
 
           // ส่ง UID ไปยัง Google Sheets ผ่าน Apps Script Web App
-          fetch("https://script.google.com/macros/s/AKfycbzeXK1aABtmbiTVaD6TOwOSSN68wZZm2BUlinDMdzN26Dm_o2vZ5fHLPOgZFNl6NuRZ/exec", {
+          fetch("https://script.google.com/macros/s/AKfycbwKPhy_FWW9cqJXjfR2jcYzpcYjlvvabCdMAqbHugOksr2Vxlk0NsfFPk29AX_J_XaF/exec", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ uid: uid })
