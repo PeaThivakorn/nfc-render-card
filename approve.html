@@ -8,49 +8,106 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .floating-cart { position: fixed; bottom: 20px; right: 20px; z-index: 1000; background: #ff5722; color: white; padding: 15px; border-radius: 50px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        body { padding-bottom: 80px; } /* เว้นที่ให้เมนูล่าง */
+        
+        /* ปุ่มตะกร้าลอย (ขยับขึ้นหนีเมนูล่าง) */
+        .floating-cart { 
+            position: fixed; bottom: 90px; right: 20px; z-index: 1000; 
+            background: #ff5722; color: white; padding: 15px; border-radius: 50px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; 
+            transition: transform 0.2s;
+        }
+        .floating-cart:active { transform: scale(0.9); }
+
+        /* เมนูด้านล่าง */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: white; border-top: 1px solid #dee2e6;
+            z-index: 1050; padding-bottom: safe-area-inset-bottom;
+        }
+        .nav-btn {
+            border: none; background: none; color: #6c757d;
+            padding: 10px 0; font-size: 14px; position: relative;
+        }
+        .nav-btn.active { color: #d32f2f; font-weight: bold; }
+        .nav-btn i { font-size: 20px; display: block; margin-bottom: 2px; }
+        
+        /* Badge แจ้งเตือนที่ไอคอนประวัติ (ถ้ามี) */
+        .badge-notify {
+            position: absolute; top: 5px; right: 30%;
+            background: red; color: white; border-radius: 50%;
+            padding: 2px 5px; font-size: 10px;
+        }
     </style>
 </head>
-<body class="bg-light pb-5">
+<body class="bg-light">
 
 <div class="container mt-3">
-    <h4 id="tableHeader">👋 ยินดีต้อนรับ</h4>
-    <hr>
-    
-    <div id="menu-container" class="row">
-        <div class="text-center py-5"><div class="spinner-border text-primary"></div><br>กำลังโหลดเมนู...</div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 id="tableHeader" class="m-0 fw-bold">👋 Loading...</h5>
+        <button class="btn btn-sm btn-outline-danger" onclick="requestBill()">เรียกพนักงาน</button>
     </div>
 
-    <div class="mt-5 mb-5">
-        <h5>📋 รายการที่สั่ง (อัปเดตทันที)</h5>
-        <div id="order-status-container" class="list-group">
-            <div class="text-muted text-center">ยังไม่ได้สั่งอาหาร</div>
+    <div id="view-menu">
+        <div id="menu-container" class="row g-3">
+            <div class="text-center py-5"><div class="spinner-border text-danger"></div><br>กำลังโหลดเมนู...</div>
         </div>
-        <button class="btn btn-outline-danger w-100 mt-3" onclick="requestBill()">เรียกเก็บเงิน / Check Bill</button>
+    </div>
+
+    <div id="view-history" class="d-none">
+        <h6 class="mb-3 text-muted">รายการที่สั่งไปแล้ว</h6>
+        <div id="order-status-container" class="list-group shadow-sm">
+            <div class="text-muted text-center py-5">
+                <i class="fas fa-clipboard-list fa-3x mb-3 text-secondary"></i><br>
+                ยังไม่มีรายการที่สั่ง
+            </div>
+        </div>
+        <div class="mt-4 p-3 bg-white rounded shadow-sm">
+            <div class="d-flex justify-content-between mb-2">
+                <span>ยอดรวมที่สั่งไปแล้ว</span>
+                <span class="fw-bold text-danger" id="historyTotal">0.-</span>
+            </div>
+            <button class="btn btn-danger w-100" onclick="requestBill()">เช็คบิล (Check Bill)</button>
+        </div>
     </div>
 </div>
 
 <div class="floating-cart" onclick="showCart()">
-    <i class="fas fa-shopping-cart"></i> <span id="cartCount">0</span>
+    <i class="fas fa-shopping-cart"></i> <span id="cartCount" class="badge bg-white text-danger rounded-pill ms-1">0</span>
 </div>
 
+<nav class="bottom-nav">
+    <div class="row m-0 text-center">
+        <div class="col-6 p-0">
+            <button class="nav-btn w-100 active" id="btn-tab-menu" onclick="switchTab('menu')">
+                <i class="fas fa-utensils"></i> สั่งอาหาร
+            </button>
+        </div>
+        <div class="col-6 p-0">
+            <button class="nav-btn w-100" id="btn-tab-history" onclick="switchTab('history')">
+                <i class="fas fa-history"></i> ประวัติ <span id="historyCountBadge"></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
 <div class="modal fade" id="cartModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">ตะกร้าของคุณ</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <ul id="cartList" class="list-group mb-3"></ul>
-                <div class="d-flex justify-content-between">
-                    <strong>รวม</strong>
-                    <strong id="cartTotal">0</strong>
+                <ul id="cartList" class="list-group list-group-flush mb-3"></ul>
+                <div class="d-flex justify-content-between px-2">
+                    <strong class="fs-5">รวมทั้งหมด</strong>
+                    <strong class="fs-5 text-danger" id="cartTotal">0.-</strong>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="clearCart()">ล้างตะกร้า</button>
-                <button type="button" class="btn btn-primary" onclick="confirmOrder()">ยืนยันการสั่ง</button>
+                <button type="button" class="btn btn-light text-danger" onclick="clearCart()">ล้างตะกร้า</button>
+                <button type="button" class="btn btn-danger px-4" onclick="confirmOrder()">ยืนยันการสั่ง</button>
             </div>
         </div>
     </div>
@@ -62,7 +119,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, getDocs, addDoc, onSnapshot, query, where, orderBy, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // 🔥 Config ของคุณใส่ให้แล้วครับ
     const firebaseConfig = {
         apiKey: "AIzaSyCFShJHMyBdibWqtC9C-7UECOe49CRXUr4",
         authDomain: "khao-man-gai.firebaseapp.com",
@@ -83,7 +139,27 @@
     let cart = JSON.parse(localStorage.getItem('cart_' + sessionId)) || [];
     let menuData = [];
 
-    // --- Functions (Exposed to Window) ---
+    // --- Tab Switching Logic ---
+    window.switchTab = (tabName) => {
+        const viewMenu = document.getElementById('view-menu');
+        const viewHistory = document.getElementById('view-history');
+        const btnMenu = document.getElementById('btn-tab-menu');
+        const btnHistory = document.getElementById('btn-tab-history');
+
+        if(tabName === 'menu') {
+            viewMenu.classList.remove('d-none');
+            viewHistory.classList.add('d-none');
+            btnMenu.classList.add('active');
+            btnHistory.classList.remove('active');
+        } else {
+            viewMenu.classList.add('d-none');
+            viewHistory.classList.remove('d-none');
+            btnMenu.classList.remove('active');
+            btnHistory.classList.add('active');
+        }
+    };
+
+    // --- Cart Functions ---
     window.showCart = () => { updateCartModal(); new bootstrap.Modal(document.getElementById('cartModal')).show(); };
     window.clearCart = () => { cart = []; saveCart(); bootstrap.Modal.getInstance(document.getElementById('cartModal')).hide(); };
     
@@ -92,15 +168,19 @@
         const exist = cart.find(c => c.id === id);
         if(exist) exist.qty++; else cart.push({...item, qty:1});
         saveCart();
-        const toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
-        toast.fire({ icon: 'success', title: 'เพิ่มลงตะกร้าแล้ว' });
+        
+        // Animation เล็กน้อย
+        const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> เพิ่มแล้ว';
+        btn.classList.replace('btn-outline-danger', 'btn-danger');
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.replace('btn-danger', 'btn-outline-danger');
+        }, 1000);
     };
     
-    window.removeFromCart = (index) => {
-        cart.splice(index, 1);
-        saveCart();
-        updateCartModal();
-    };
+    window.removeFromCart = (index) => { cart.splice(index, 1); saveCart(); updateCartModal(); };
 
     window.confirmOrder = async () => {
         if(cart.length === 0) return;
@@ -125,7 +205,17 @@
             
             cart = []; 
             saveCart();
-            Swal.fire('สำเร็จ', 'ส่งออเดอร์เรียบร้อยแล้ว', 'success');
+            Swal.fire({
+                icon: 'success',
+                title: 'สั่งอาหารเรียบร้อย!',
+                text: 'อาหารกำลังไปที่ครัวครับ',
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                // Auto switch to history tab
+                window.switchTab('history');
+            });
+
         } catch(err) {
             Swal.fire('ผิดพลาด', 'ส่งข้อมูลไม่สำเร็จ: ' + err.message, 'error');
         }
@@ -137,7 +227,12 @@
 
     function saveCart() { 
         localStorage.setItem('cart_' + sessionId, JSON.stringify(cart)); 
-        document.getElementById('cartCount').innerText = cart.reduce((s,i)=>s+i.qty,0); 
+        const count = cart.reduce((s,i)=>s+i.qty,0);
+        document.getElementById('cartCount').innerText = count > 0 ? count : '0';
+        
+        // ซ่อนปุ่มตะกร้าถ้าไม่มีของ (Optional: เปิดไว้ตลอดก็ได้)
+        // const cartBtn = document.querySelector('.floating-cart');
+        // if(count > 0) cartBtn.style.display = 'block'; else cartBtn.style.display = 'none';
     }
     
     function updateCartModal() {
@@ -147,64 +242,60 @@
             list.innerHTML += `
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     <div>${i.name} <small class="text-muted">x${i.qty}</small></div>
-                    <div>
-                        <span class="me-2">${i.price * i.qty}</span>
-                        <button class="btn btn-sm text-danger" onclick="removeFromCart(${idx})"><i class="fas fa-times"></i></button>
+                    <div class="d-flex align-items-center">
+                        <span class="me-3 fw-bold">${i.price * i.qty}.-</span>
+                        <button class="btn btn-sm btn-light text-danger" onclick="removeFromCart(${idx})"><i class="fas fa-trash"></i></button>
                     </div>
                 </li>`; 
         });
-        document.getElementById('cartTotal').innerText = total + ' บาท';
+        document.getElementById('cartTotal').innerText = total + '.-';
     }
 
     // --- Main Logic ---
     (async () => {
         if(!sessionId) {
-            Swal.fire({icon:'error', title:'ไม่พบ Session', text:'กรุณาสแกน QR Code ใหม่'});
+            document.body.innerHTML = '<div class="text-center mt-5 pt-5"><h3>❌ ไม่พบ Session</h3><p>กรุณาสแกน QR Code ใหม่</p></div>';
             return;
         }
         document.getElementById('tableHeader').innerText = `👋 ${tableName || 'ลูกค้า'}`;
         saveCart();
 
-        // 1. ตรวจสอบว่าโต๊ะปิดหรือยัง (Realtime Check)
-        // ถ้า status != open ให้เด้งเตือน
+        // 1. Check Table Status
         if (tableName) {
-            const docRef = doc(db, "tables", tableName);
-            onSnapshot(docRef, (docSnap) => {
+            onSnapshot(doc(db, "tables", tableName), (docSnap) => {
                 const data = docSnap.data();
                 if (!data || data.status !== 'open' || data.sessionId !== sessionId) {
-                    Swal.fire({
-                        icon: 'error', 
-                        title: 'QR Code หมดอายุ', 
-                        text: 'โต๊ะนี้ถูกปิดแล้ว หรือ QR Code ไม่ถูกต้อง',
-                        allowOutsideClick: false,
-                        showConfirmButton: false
-                    });
-                    document.body.innerHTML = '<div class="container text-center mt-5"><h3>⛔ QR Code หมดอายุ</h3></div>';
+                    Swal.fire({ icon: 'error', title: 'Session หมดอายุ', text: 'กรุณาติดต่อพนักงาน', allowOutsideClick: false, showConfirmButton: false });
+                    document.body.innerHTML = '<div class="text-center mt-5 pt-5 text-muted"><h3>⛔ โต๊ะนี้ถูกปิดแล้ว</h3></div>';
                 }
             });
         }
 
-        // 2. โหลดเมนูจาก Firebase (Menus Collection)
+        // 2. Load Menus
         const container = document.getElementById('menu-container');
         try {
             const menuSnap = await getDocs(collection(db, "menus"));
-            
             if (menuSnap.empty) {
-                container.innerHTML = '<div class="text-center text-danger">ไม่พบเมนูอาหาร (กรุณาสร้าง Collection "menus" ใน Database)</div>';
+                container.innerHTML = '<div class="text-center text-muted py-5">ยังไม่มีเมนูอาหาร</div>';
             } else {
                 container.innerHTML = '';
                 menuSnap.forEach(doc => {
                     const m = doc.data();
                     if(m.status === 'available') {
                         menuData.push({id: doc.id, ...m});
+                        // Random รูปอาหาร (Placeholder) หรือจะเอาออกก็ได้
+                        const imgUrl = `https://source.unsplash.com/200x200/?food,${m.name}`; 
+                        
                         container.innerHTML += `
-                            <div class="col-6 col-md-4 mb-3">
-                                <div class="card h-100 shadow-sm border-0">
-                                    <div class="card-body p-3 text-center">
-                                        <h6 class="card-title fw-bold">${m.name}</h6>
-                                        <p class="text-success mb-2">${m.price}.-</p>
-                                        <button class="btn btn-sm btn-outline-primary w-100 rounded-pill" onclick="addToCart('${doc.id}')">
-                                            <i class="fas fa-plus"></i> ใส่ตะกร้า
+                            <div class="col-6 col-md-4 col-lg-3">
+                                <div class="card h-100 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <h6 class="fw-bold mb-1">${m.name}</h6>
+                                            <p class="text-danger fw-bold mb-2">${m.price}.-</p>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-danger w-100 rounded-pill mt-2" onclick="addToCart('${doc.id}')">
+                                            + ใส่ตะกร้า
                                         </button>
                                     </div>
                                 </div>
@@ -214,35 +305,61 @@
                 });
             }
         } catch (err) {
-            container.innerHTML = `<div class="text-center text-danger">Error Load Menu: ${err.message}</div>`;
+            console.error(err);
         }
 
-        // 3. ฟังสถานะออเดอร์ของตัวเอง (Realtime)
+        // 3. Realtime Orders (History Tab)
         const q = query(collection(db, "orders"), where("sessionId", "==", sessionId), orderBy("timestamp", "desc"));
         onSnapshot(q, (snapshot) => {
             const list = document.getElementById('order-status-container');
-            list.innerHTML = '';
+            const badge = document.getElementById('historyCountBadge');
+            const totalDisplay = document.getElementById('historyTotal');
             
-            if(snapshot.empty) {
-                list.innerHTML = '<div class="text-muted text-center py-3">ยังไม่ได้สั่งอาหาร</div>';
-                return;
-            }
+            list.innerHTML = '';
+            let totalSpent = 0;
+            let count = 0;
 
-            snapshot.forEach(doc => {
-                const o = doc.data();
-                let badge = 'bg-secondary';
-                if(o.status==='กำลังทำ') badge='bg-warning text-dark';
-                if(o.status==='เสิร์ฟแล้ว') badge='bg-success';
-                
-                list.innerHTML += `
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="fw-bold">${o.menuName}</span> 
-                            <small class="text-muted">x${o.qty}</small>
-                        </div>
-                        <span class="badge ${badge}">${o.status}</span>
+            if(snapshot.empty) {
+                list.innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-utensils fa-2x mb-3 text-light"></i><br>
+                        ยังไม่มีรายการที่สั่ง
                     </div>`;
-            });
+                badge.className = '';
+                badge.innerText = '';
+            } else {
+                snapshot.forEach(doc => {
+                    const o = doc.data();
+                    count++;
+                    totalSpent += (o.price * o.qty);
+                    
+                    let statusColor = 'bg-secondary';
+                    let statusIcon = 'fa-clock';
+                    
+                    if(o.status==='กำลังทำ') { statusColor='bg-warning text-dark'; statusIcon='fa-fire'; }
+                    if(o.status==='เสิร์ฟแล้ว') { statusColor='bg-success'; statusIcon='fa-check'; }
+                    
+                    list.innerHTML += `
+                        <div class="list-group-item border-0 border-bottom py-3">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div class="fw-bold">${o.menuName}</div>
+                                <div class="fw-bold">${o.price * o.qty}.-</div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">จำนวน x${o.qty}</small>
+                                <span class="badge ${statusColor} rounded-pill">
+                                    <i class="fas ${statusIcon} me-1"></i> ${o.status}
+                                </span>
+                            </div>
+                        </div>`;
+                });
+                
+                // แจ้งเตือนจำนวนออเดอร์ที่ปุ่มด้านล่าง
+                badge.className = 'badge-notify';
+                badge.innerText = count;
+            }
+            
+            totalDisplay.innerText = totalSpent + '.-';
         });
     })();
 </script>
