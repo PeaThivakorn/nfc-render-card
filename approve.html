@@ -221,8 +221,40 @@
         }
     };
 
-    window.requestBill = () => {
-        Swal.fire('แจ้งพนักงานแล้ว', 'กรุณารอสักครู่ พนักงานกำลังมาที่โต๊ะ', 'info');
+
+    // ... (โค้ดส่วนอื่นเหมือนเดิม)
+
+    window.requestBill = async () => {
+        const result = await Swal.fire({
+            title: 'เรียกพนักงาน / เช็คบิล?',
+            text: "พนักงานจะได้รับแจ้งเตือนที่หน้าเคาน์เตอร์",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'ใช่ เรียกพนักงาน',
+            confirmButtonColor: '#d33',
+            cancelButtonText: 'ยกเลิก'
+        });
+
+        if (result.isConfirmed) {
+            Swal.fire({title:'กำลังเรียก...', didOpen:()=>Swal.showLoading()});
+            
+            try {
+                // อัปเดตสถานะไปที่ Firebase ว่าโต๊ะนี้เรียก
+                await updateDoc(doc(db, "tables", tableName), { 
+                    requestBill: true 
+                });
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'แจ้งพนักงานแล้ว',
+                    text: 'กรุณารอสักครู่ พนักงานกำลังมาครับ',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } catch (err) {
+                Swal.fire('Error', 'ไม่สามารถเรียกพนักงานได้: ' + err.message, 'error');
+            }
+        }
     };
 
     function saveCart() { 
