@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,323 +7,266 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .table-card {
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .table-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .bg-open {
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-        }
-
-        .bg-closed {
-            background-color: #f8f9fa;
-            border-color: #dee2e6;
-        }
-
-        /* เพิ่มต่อจาก Style เดิม */
+        .table-card { cursor: pointer; transition: 0.3s; position: relative; }
+        .table-card:hover { transform: translateY(-5px); }
+        .bg-open { background-color: #d4edda; border-color: #c3e6cb; }
+        .bg-closed { background-color: #f8f9fa; border-color: #dee2e6; }
+        
+        /* Animation โต๊ะกระพริบเมื่อลูกค้าเรียก */
         @keyframes blink {
-            0% {
-                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
-                border-color: #dc3545;
-            }
-
-            70% {
-                box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
-                border-color: #dc3545;
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
-                border-color: #dc3545;
-            }
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); border-color: #dc3545; background-color: #fff5f5; }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); border-color: #dc3545; background-color: #ffebeb; }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); border-color: #dc3545; background-color: #fff5f5; }
         }
-
         .calling-alert {
             animation: blink 1.5s infinite;
-            background-color: #fff5f5 !important;
-            /* พื้นหลังสีแดงอ่อนๆ */
-            border: 2px solid #dc3545 !important;
+            color: #dc3545;
         }
     </style>
 </head>
-
 <body class="bg-light p-3">
 
-    <div class="container">
-        <h2 class="mb-4">🔥 ร้านข้าวมันไก่ (POS System)</h2>
-        <div class="row" id="tables-container">
-            <div class="text-center py-5">กำลังโหลดข้อมูลโต๊ะ...</div>
-        </div>
+<div class="container">
+    <h2 class="mb-4"><i class="fas fa-store text-warning"></i> ร้านข้าวมันไก่ (POS)</h2>
+    <div class="row" id="tables-container">
+        <div class="text-center py-5">กำลังโหลดข้อมูลโต๊ะ...</div>
     </div>
+</div>
 
-    <div class="modal fade" id="tableModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalTitle">Table Detail</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="modal fade" id="tableModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Table Detail</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="openSection" class="text-center d-none">
+                    <button class="btn btn-primary btn-lg" onclick="openTable()">🔵 เปิดโต๊ะ</button>
                 </div>
-                <div class="modal-body">
-                    <div id="openSection" class="text-center d-none">
-                        <button class="btn btn-primary btn-lg" onclick="openTable()">🔵 เปิดโต๊ะ</button>
-                    </div>
-                    <div id="activeSection" class="d-none">
-                        <div class="row">
-                            <div class="col-md-4 text-center">
-                                <div id="qrcode" class="d-flex justify-content-center mb-2"></div>
-                                <a id="customerLink" href="#" target="_blank"
-                                    class="btn btn-sm btn-outline-info">ลิงก์ลูกค้า</a>
-                                <div class="mt-2 text-muted small">Session: <span id="sessionDisplay"></span></div>
+                <div id="activeSection" class="d-none">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div id="qrcode" class="d-flex justify-content-center mb-2"></div>
+                            <a id="customerLink" href="#" target="_blank" class="btn btn-sm btn-outline-info">ลิงก์ลูกค้า</a>
+                            <div class="mt-2 text-muted small">Session: <span id="sessionDisplay"></span></div>
+                        </div>
+                        <div class="col-md-8">
+                            <h5>รายการสั่งอาหาร (Realtime)</h5>
+                            <div class="table-responsive" style="max-height:300px; overflow-y:auto;">
+                                <table class="table table-sm text-center align-middle">
+                                    <thead><tr><th>เมนู</th><th>จำนวน</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                                    <tbody id="orderList"></tbody>
+                                </table>
                             </div>
-                            <div class="col-md-8">
-                                <h5>รายการสั่งอาหาร (Realtime)</h5>
-                                <div class="table-responsive" style="max-height:300px; overflow-y:auto;">
-                                    <table class="table table-sm text-center">
-                                        <thead>
-                                            <tr>
-                                                <th>เมนู</th>
-                                                <th>จำนวน</th>
-                                                <th>สถานะ</th>
-                                                <th>จัดการ</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="orderList"></tbody>
-                                    </table>
-                                </div>
-                                <button class="btn btn-danger w-100 mt-2" onclick="closeTable()">💰 เช็คบิล /
-                                    ปิดโต๊ะ</button>
-                            </div>
+                            <button class="btn btn-danger w-100 mt-2" onclick="closeTable()">💰 เช็คบิล / ปิดโต๊ะ</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, doc, updateDoc, onSnapshot, query, where, getDocs, deleteDoc, addDoc, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, doc, updateDoc, onSnapshot, query, where, getDocs, deleteDoc, addDoc, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // 🔥 Config ของคุณใส่ให้แล้วครับ
-        const firebaseConfig = {
-            apiKey: "AIzaSyCFShJHMyBdibWqtC9C-7UECOe49CRXUr4",
-            authDomain: "khao-man-gai.firebaseapp.com",
-            projectId: "khao-man-gai",
-            storageBucket: "khao-man-gai.firebasestorage.app",
-            messagingSenderId: "395966701230",
-            appId: "1:395966701230:web:b570681a143e658934d73f",
-            measurementId: "G-3PVW3CCT8C"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyCFShJHMyBdibWqtC9C-7UECOe49CRXUr4",
+        authDomain: "khao-man-gai.firebaseapp.com",
+        projectId: "khao-man-gai",
+        storageBucket: "khao-man-gai.firebasestorage.app",
+        messagingSenderId: "395966701230",
+        appId: "1:395966701230:web:b570681a143e658934d73f",
+        measurementId: "G-3PVW3CCT8C"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const CUSTOMER_URL = 'https://nfc-render-card.onrender.com/approve.html';
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const CUSTOMER_URL = 'https://nfc-render-card.onrender.com/approve.html'; 
 
-        let currentTable = '';
-        let currentSession = '';
-        let unsubscribeOrders = null;
+    let currentTable = '';
+    let currentSession = '';
+    let unsubscribeOrders = null;
 
-        // 1. โหลดโต๊ะและฟังสถานะ Realtime
-        const tables = ['Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5', 'Table 6'];
-        const container = document.getElementById('tables-container');
-
-        // สร้าง Card โต๊ะรอไว้ก่อน
-        container.innerHTML = '';
-        tables.forEach(t => {
-            const safeId = t.replace(/\s+/g, '-');
-            container.innerHTML += `
-            <div class="col-6 col-md-4 mb-3">
-                <div class="card table-card text-center p-4 shadow-sm" id="card-${safeId}" onclick="clickTable('${t}')">
-                    <h3>🍽️ ${t}</h3>
-                    <small id="status-${safeId}" class="text-muted">Loading...</small>
-                </div>
-            </div>
-        `;
-        });
-
-        // ฟังสถานะโต๊ะจาก Firebase (ถ้าใน Database มีข้อมูลแล้วจะอัปเดตทันที)        
-        onSnapshot(collection(db, "tables"), (snapshot) => {
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                const safeId = doc.id.replace(/\s+/g, '-');
-                const card = document.getElementById(`card-${safeId}`);
-                const statusText = document.getElementById(`status-${safeId}`);
-
-                if (card && statusText) {
-                    // Reset Classes ก่อน
-                    card.classList.remove('bg-open', 'bg-closed', 'calling-alert', 'border-success');
-
-                    if (data.requestBill === true) {
-                        // 🔔 กรณีลูกค้ากดเรียก!!
-                        card.classList.add('calling-alert'); // ใส่ Effect กระพริบ
-                        statusText.innerHTML = '<span class="text-danger fw-bold"><i class="fas fa-bell"></i> ลูกค้าเรียก!</span>';
-
-                        // (Optional) เล่นเสียงเตือนตรงนี้ได้ถ้าต้องการ
-
-                    } else if (data.status === 'open') {
-                        // กรณีเปิดโต๊ะปกติ
-                        card.classList.add('bg-open', 'border-success');
-                        statusText.innerText = 'ลูกค้ากำลังทาน';
-                        statusText.classList.add('text-success');
-                        statusText.classList.remove('text-danger', 'fw-bold');
-                    } else {
-                        // กรณีโต๊ะว่าง
-                        card.classList.add('bg-closed');
-                        statusText.innerText = 'ว่าง';
-                        statusText.classList.remove('text-success', 'text-danger', 'fw-bold');
-                    }
-                }
-            });
-        });
-
-        
-        window.clickTable = async (tableName) => {
-            currentTable = tableName;
-            const modal = new bootstrap.Modal(document.getElementById('tableModal'));
-            document.getElementById('modalTitle').innerText = tableName;
-
-            if (unsubscribeOrders) unsubscribeOrders();
-
-            // 🔥 เพิ่มตรงนี้: ถ้ามีการเรียกอยู่ ให้เคลียร์สถานะออก (ถือว่าพนักงานรับทราบแล้ว)
-            // เราจะเช็คก่อนว่าโต๊ะนี้มีการเรียกไหม ถ้ามีให้ updateDoc เป็น false
-            const tableRef = doc(db, "tables", tableName);
-
-            // เรา Update แบบ Blind update ไปเลยก็ได้เพื่อความเร็ว (ตั้ง requestBill เป็น false เสมอเมื่อเปิดดู)
-            updateDoc(tableRef, { requestBill: false }).catch(e => console.log("No request to clear"));
-
-            // ... (ส่วนฟัง Realtime Orders เหมือนเดิม) ...
-            onSnapshot(tableRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data && data.status === 'open') {
-                        currentSession = data.sessionId;
-                        showActiveUI();
-                    } else {
-                        showOpenUI();
-                    }
-                }
-            });
-
-            modal.show();
-        };
-
-        window.openTable = async () => {
-            Swal.fire({ title: 'กำลังเปิดโต๊ะ...', didOpen: () => Swal.showLoading() });
-            const sessionId = Math.random().toString(36).substring(2, 10).toUpperCase();
-
-            try {
-                await updateDoc(doc(db, "tables", currentTable), {
-                    status: 'open',
-                    sessionId: sessionId,
-                    openTime: new Date().toISOString()
-                });
-                Swal.close();
-            } catch (error) {
-                Swal.fire('Error', 'ไม่พบข้อมูลโต๊ะใน Database<br>กรุณาสร้าง Document ID: ' + currentTable + ' ใน Collection "tables" ก่อน', 'error');
-            }
-        };
-
-        window.closeTable = async () => {
-            const result = await Swal.fire({
-                title: 'ยืนยันปิดโต๊ะ?',
-                text: "ระบบจะรวมยอดและเคลียร์โต๊ะ",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'ปิดโต๊ะ/เช็คบิล'
-            });
-
-            if (!result.isConfirmed) return;
-
-            Swal.fire({ title: 'กำลังคำนวณ...', didOpen: () => Swal.showLoading() });
-
-            // 1. รวมยอด
-            const q = query(collection(db, "orders"), where("sessionId", "==", currentSession));
-            const querySnapshot = await getDocs(q);
-            let total = 0;
-            let items = [];
-            const batchPromises = [];
-
-            querySnapshot.forEach((docSnap) => {
-                const d = docSnap.data();
-                if (d.status !== 'ยกเลิก') {
-                    total += (Number(d.price) * Number(d.qty));
-                    items.push(d);
-                }
-                batchPromises.push(deleteDoc(docSnap.ref)); // ลบออเดอร์
-            });
-
-            await Promise.all(batchPromises);
-
-            // 2. บันทึก History
-            await addDoc(collection(db, "history"), {
-                tableName: currentTable,
-                sessionId: currentSession,
-                total: total,
-                items: items,
-                timestamp: new Date().toISOString()
-            });
-
-            // 3. ปิดโต๊ะ
-            await updateDoc(doc(db, "tables", currentTable), {
-                status: 'closed',
-                sessionId: '',
-                openTime: ''
-            });
-
-            Swal.fire('ปิดโต๊ะสำเร็จ', `ยอดรวมทั้งหมด ${total} บาท`, 'success').then(() => {
-                bootstrap.Modal.getInstance(document.getElementById('tableModal')).hide();
-            });
-        };
-
-        window.updateStatus = async (orderId, status) => {
-            await updateDoc(doc(db, "orders", orderId), { status: status });
-        };
-
-        function showOpenUI() {
-            document.getElementById('openSection').classList.remove('d-none');
-            document.getElementById('activeSection').classList.add('d-none');
+    // 1. โหลดและฟังสถานะโต๊ะ (Realtime)
+    const container = document.getElementById('tables-container');
+    
+    // ฟัง collection "tables"
+    onSnapshot(collection(db, "tables"), (snapshot) => {
+        if(snapshot.empty) {
+            container.innerHTML = `<div class="text-center text-danger">⚠️ ยังไม่ได้สร้างโต๊ะ (ไปสร้างที่หน้า Admin ก่อน)</div>`;
+            return;
         }
 
-        function showActiveUI() {
-            document.getElementById('openSection').classList.add('d-none');
-            document.getElementById('activeSection').classList.remove('d-none');
-            document.getElementById('sessionDisplay').innerText = currentSession;
+        // เรียงลำดับโต๊ะตามชื่อ (Table 1, Table 2...)
+        const tablesData = [];
+        snapshot.forEach(doc => tablesData.push({id: doc.id, ...doc.data()}));
+        tablesData.sort((a,b) => a.id.localeCompare(b.id, undefined, {numeric: true}));
 
-            // Gen QR
-            const url = `${CUSTOMER_URL}?id=${currentSession}&table=${encodeURIComponent(currentTable)}`;
-            document.getElementById('qrcode').innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), { text: url, width: 128, height: 128 });
-            document.getElementById('customerLink').href = url;
+        container.innerHTML = '';
+        tablesData.forEach(t => {
+            const safeId = t.id.replace(/\s+/g, '-');
+            
+            // สร้าง Card
+            let cardClass = 'bg-closed';
+            let statusBadge = 'ว่าง';
+            let textClass = 'text-muted';
+            
+            if(t.requestBill) {
+                cardClass = 'calling-alert';
+                statusBadge = '<i class="fas fa-bell"></i> ลูกค้าเรียก!';
+                textClass = 'text-danger fw-bold';
+            } else if(t.status === 'open') {
+                cardClass = 'bg-open border-success';
+                statusBadge = 'ลูกค้ากำลังทาน';
+                textClass = 'text-success';
+            }
 
-            // 🔥 Realtime Orders Listener
-            const q = query(collection(db, "orders"), where("sessionId", "==", currentSession), orderBy("timestamp", "desc"));
-            unsubscribeOrders = onSnapshot(q, (snapshot) => {
-                const tbody = document.getElementById('orderList');
-                tbody.innerHTML = '';
+            container.innerHTML += `
+                <div class="col-6 col-md-4 mb-3">
+                    <div class="card table-card text-center p-4 shadow-sm ${cardClass}" onclick="clickTable('${t.id}')">
+                        <h3>🍽️ ${t.id}</h3>
+                        <small class="${textClass}">${statusBadge}</small>
+                    </div>
+                </div>
+            `;
+        });
+    });
 
-                if (snapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-muted">ยังไม่มีออเดอร์</td></tr>';
-                    return;
-                }
+    window.clickTable = async (tableName) => {
+        currentTable = tableName;
+        const modal = new bootstrap.Modal(document.getElementById('tableModal'));
+        document.getElementById('modalTitle').innerText = tableName;
+        
+        if(unsubscribeOrders) unsubscribeOrders();
 
-                snapshot.forEach((doc) => {
-                    const item = doc.data();
-                    const id = doc.id;
-                    let badge = 'bg-secondary';
-                    if (item.status === 'กำลังทำ') badge = 'bg-warning text-dark';
-                    if (item.status === 'เสิร์ฟแล้ว') badge = 'bg-success';
-                    if (item.status === 'ยกเลิก') badge = 'bg-danger';
+        // เมื่อกดดู ให้ถือว่ารับทราบการเรียกแล้ว -> ปิดการแจ้งเตือน
+        updateDoc(doc(db, "tables", tableName), { requestBill: false }).catch(()=>{});
 
-                    tbody.innerHTML += `
+        // ฟังสถานะโต๊ะเฉพาะโต๊ะนี้
+        onSnapshot(doc(db, "tables", tableName), (docSnap) => {
+             if (docSnap.exists()) {
+                 const data = docSnap.data();
+                 if(data && data.status === 'open') {
+                     currentSession = data.sessionId;
+                     showActiveUI();
+                 } else {
+                     showOpenUI();
+                 }
+             }
+         });
+        modal.show();
+    };
+
+    window.openTable = async () => {
+        Swal.fire({title: 'กำลังเปิดโต๊ะ...', didOpen: () => Swal.showLoading()});
+        const sessionId = Math.random().toString(36).substring(2, 10).toUpperCase();
+        await updateDoc(doc(db, "tables", currentTable), {
+            status: 'open',
+            sessionId: sessionId,
+            openTime: new Date().toISOString(),
+            requestBill: false
+        });
+        Swal.close();
+    };
+
+    window.closeTable = async () => {
+        const result = await Swal.fire({
+            title: 'ยืนยันปิดโต๊ะ?',
+            text: "ระบบจะรวมยอดและเคลียร์โต๊ะ",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'ปิดโต๊ะ/เช็คบิล'
+        });
+
+        if (!result.isConfirmed) return;
+        Swal.fire({title: 'กำลังคำนวณ...', didOpen: () => Swal.showLoading()});
+
+        // Query Orders
+        const q = query(collection(db, "orders"), where("sessionId", "==", currentSession));
+        const querySnapshot = await getDocs(q);
+        let total = 0;
+        let items = [];
+        const batchPromises = [];
+        
+        querySnapshot.forEach((docSnap) => {
+            const d = docSnap.data();
+            if(d.status !== 'ยกเลิก') {
+                total += (Number(d.price) * Number(d.qty));
+                items.push(d);
+            }
+            batchPromises.push(deleteDoc(docSnap.ref));
+        });
+        await Promise.all(batchPromises);
+
+        // Save History
+        await addDoc(collection(db, "history"), {
+            tableName: currentTable,
+            sessionId: currentSession,
+            total: total,
+            items: items,
+            timestamp: new Date().toISOString()
+        });
+
+        // Reset Table
+        await updateDoc(doc(db, "tables", currentTable), {
+            status: 'closed',
+            sessionId: '',
+            openTime: '',
+            requestBill: false
+        });
+        
+        Swal.fire('ปิดโต๊ะสำเร็จ', `ยอดรวมทั้งหมด ${total} บาท`, 'success').then(() => {
+            bootstrap.Modal.getInstance(document.getElementById('tableModal')).hide();
+        });
+    };
+
+    window.updateStatus = async (orderId, status) => {
+        await updateDoc(doc(db, "orders", orderId), { status: status });
+    };
+
+    function showOpenUI() {
+        document.getElementById('openSection').classList.remove('d-none');
+        document.getElementById('activeSection').classList.add('d-none');
+    }
+
+    function showActiveUI() {
+        document.getElementById('openSection').classList.add('d-none');
+        document.getElementById('activeSection').classList.remove('d-none');
+        document.getElementById('sessionDisplay').innerText = currentSession;
+        
+        // QR Code
+        const url = `${CUSTOMER_URL}?id=${currentSession}&table=${encodeURIComponent(currentTable)}`;
+        document.getElementById('qrcode').innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), { text: url, width: 128, height: 128 });
+        document.getElementById('customerLink').href = url;
+
+        // Realtime Orders
+        const q = query(collection(db, "orders"), where("sessionId", "==", currentSession), orderBy("timestamp", "desc"));
+        unsubscribeOrders = onSnapshot(q, (snapshot) => {
+            const tbody = document.getElementById('orderList');
+            tbody.innerHTML = '';
+            
+            if (snapshot.empty) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-muted">ยังไม่มีออเดอร์</td></tr>';
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const item = doc.data();
+                const id = doc.id;
+                let badge = 'bg-secondary';
+                if(item.status === 'กำลังทำ') badge = 'bg-warning text-dark';
+                if(item.status === 'เสิร์ฟแล้ว') badge = 'bg-success';
+                if(item.status === 'ยกเลิก') badge = 'bg-danger';
+                
+                tbody.innerHTML += `
                     <tr>
                         <td>${item.menuName}</td>
                         <td>${item.qty}</td>
@@ -336,10 +278,15 @@
                         </td>
                     </tr>
                 `;
-                });
             });
-        }
-    </script>
+        }, (error) => {
+             // Handle Index Error
+             if(error.message.includes('requires an index')) {
+                 console.error(error);
+                 Swal.fire('System Config Required', 'Please create Index in Firebase Console (Check Console Log)', 'warning');
+             }
+        });
+    }
+</script>
 </body>
-
 </html>

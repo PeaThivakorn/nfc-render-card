@@ -17,82 +17,52 @@
     </div>
 
     <ul class="nav nav-tabs mb-3" id="adminTab" role="tablist">
-        <li class="nav-item">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#menu-tab">จัดการเมนู</button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#table-tab">จัดการโต๊ะ</button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#history-tab">ประวัติการขาย</button>
-        </li>
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#menu-tab">จัดการเมนู</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#table-tab">จัดการโต๊ะ</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#history-tab">ประวัติการขาย</button></li>
     </ul>
 
     <div class="tab-content">
-        
         <div class="tab-pane fade show active" id="menu-tab">
             <div class="card mb-4">
-                <div class="card-header bg-primary text-white">เพิ่ม / แก้ไข เมนู</div>
                 <div class="card-body">
                     <form id="menuForm">
                         <input type="hidden" id="editId">
                         <div class="row g-2">
-                            <div class="col-md-4">
-                                <input type="text" class="form-control" id="menuName" placeholder="ชื่อเมนู (เช่น ข้าวมันไก่)" required>
+                            <div class="col-md-5"><input type="text" class="form-control" id="menuName" placeholder="ชื่อเมนู" required></div>
+                            <div class="col-md-3"><input type="number" class="form-control" id="menuPrice" placeholder="ราคา" required></div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="menuStatus"><option value="available">ขาย</option><option value="soldout">หมด</option></select>
                             </div>
-                            <div class="col-md-3">
-                                <input type="number" class="form-control" id="menuPrice" placeholder="ราคา" required>
-                            </div>
-                            <div class="col-md-3">
-                                <select class="form-select" id="menuStatus">
-                                    <option value="available">พร้อมขาย</option>
-                                    <option value="soldout">หมด (Sold Out)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2 d-grid">
-                                <button type="submit" class="btn btn-success" id="saveBtn">บันทึก</button>
-                            </div>
-                        </div>
-                        <div class="mt-2 text-end">
-                            <button type="button" class="btn btn-sm btn-secondary d-none" id="cancelEdit" onclick="resetForm()">ยกเลิกแก้ไข</button>
+                            <div class="col-md-2"><button type="submit" class="btn btn-success w-100" id="saveBtn">บันทึก</button></div>
                         </div>
                     </form>
                 </div>
             </div>
-
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover bg-white shadow-sm">
-                    <thead class="table-light">
-                        <tr><th>ชื่อเมนู</th><th>ราคา</th><th>สถานะ</th><th>จัดการ</th></tr>
-                    </thead>
-                    <tbody id="menuTableBody"></tbody>
-                </table>
-            </div>
+            <table class="table table-bordered bg-white shadow-sm">
+                <thead class="table-light"><tr><th>เมนู</th><th>ราคา</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                <tbody id="menuTableBody"></tbody>
+            </table>
         </div>
 
         <div class="tab-pane fade" id="table-tab">
             <div class="card mb-3">
                 <div class="card-body">
-                    <h5>เพิ่มโต๊ะใหม่</h5>
                     <div class="input-group">
-                        <span class="input-group-text">ชื่อโต๊ะ</span>
-                        <input type="text" class="form-control" id="newTableName" placeholder="เช่น Table 7">
+                        <input type="text" class="form-control" id="newTableName" placeholder="ชื่อโต๊ะ (เช่น Table 1)">
                         <button class="btn btn-primary" onclick="addTable()">เพิ่มโต๊ะ</button>
                     </div>
-                    <small class="text-muted">*ชื่อโต๊ะต้องไม่ซ้ำกับที่มีอยู่</small>
                 </div>
             </div>
             <div class="row" id="adminTableList"></div>
         </div>
 
         <div class="tab-pane fade" id="history-tab">
-            <button class="btn btn-sm btn-danger mb-3" onclick="clearHistory()">ล้างประวัติทั้งหมด</button>
-            <div class="table-responsive">
-                <table class="table table-striped bg-white">
-                    <thead><tr><th>เวลา</th><th>โต๊ะ</th><th>รายการ</th><th>ยอดรวม</th></tr></thead>
-                    <tbody id="historyTableBody"></tbody>
-                </table>
-            </div>
+            <button class="btn btn-sm btn-danger mb-3" onclick="clearHistory()">ล้างประวัติ</button>
+            <table class="table table-striped bg-white">
+                <thead><tr><th>เวลา</th><th>โต๊ะ</th><th>ยอดรวม</th></tr></thead>
+                <tbody id="historyTableBody"></tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -103,7 +73,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // 🔥 ใส่ Config เดิมของคุณตรงนี้ครับ
     const firebaseConfig = {
         apiKey: "AIzaSyCFShJHMyBdibWqtC9C-7UECOe49CRXUr4",
         authDomain: "khao-man-gai.firebaseapp.com",
@@ -117,12 +86,11 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // ================= MENUS =================
+    // MENU LOGIC
     const menuForm = document.getElementById('menuForm');
     const menuTableBody = document.getElementById('menuTableBody');
     let isEditing = false;
 
-    // Load Menus
     onSnapshot(collection(db, "menus"), (snapshot) => {
         menuTableBody.innerHTML = '';
         snapshot.forEach(docSnap => {
@@ -134,14 +102,13 @@
                 <td><span class="badge ${m.status==='available'?'bg-success':'bg-danger'}">${m.status}</span></td>
                 <td>
                     <button class="btn btn-sm btn-warning" onclick="window.editMenu('${docSnap.id}', '${m.name}', '${m.price}', '${m.status}')"><i class="fas fa-edit"></i></button>
-                    <button class="btn btn-sm btn-danger" onclick="window.deleteMenu('${docSnap.id}', '${m.name}')"><i class="fas fa-trash"></i></button>
+                    <button class="btn btn-sm btn-danger" onclick="window.deleteMenu('${docSnap.id}')"><i class="fas fa-trash"></i></button>
                 </td>
             `;
             menuTableBody.appendChild(tr);
         });
     });
 
-    // Add / Update Menu
     menuForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('editId').value;
@@ -149,136 +116,71 @@
         const price = Number(document.getElementById('menuPrice').value);
         const status = document.getElementById('menuStatus').value;
 
-        Swal.fire({title:'กำลังบันทึก...', didOpen:()=>Swal.showLoading()});
-
-        try {
-            if(isEditing && id) {
-                await updateDoc(doc(db, "menus", id), { name, price, status });
-                Swal.fire('เรียบร้อย', 'แก้ไขเมนูสำเร็จ', 'success');
-            } else {
-                await addDoc(collection(db, "menus"), { name, price, status, category: 'General' }); // Default category
-                Swal.fire('เรียบร้อย', 'เพิ่มเมนูสำเร็จ', 'success');
-            }
-            resetForm();
-        } catch(err) {
-            Swal.fire('Error', err.message, 'error');
+        if(isEditing && id) {
+            await updateDoc(doc(db, "menus", id), { name, price, status });
+        } else {
+            await addDoc(collection(db, "menus"), { name, price, status });
         }
+        menuForm.reset(); isEditing = false;
+        document.getElementById('saveBtn').innerText = 'บันทึก';
+        document.getElementById('saveBtn').classList.replace('btn-warning', 'btn-success');
     });
 
-    // Expose Functions
     window.editMenu = (id, name, price, status) => {
         document.getElementById('editId').value = id;
         document.getElementById('menuName').value = name;
         document.getElementById('menuPrice').value = price;
         document.getElementById('menuStatus').value = status;
-        document.getElementById('saveBtn').innerText = 'อัปเดต';
+        document.getElementById('saveBtn').innerText = 'แก้ไข';
         document.getElementById('saveBtn').classList.replace('btn-success', 'btn-warning');
-        document.getElementById('cancelEdit').classList.remove('d-none');
         isEditing = true;
     };
-
-    window.deleteMenu = async (id, name) => {
-        if((await Swal.fire({title:`ลบ "${name}"?`, icon:'warning', showCancelButton:true})).isConfirmed){
-            await deleteDoc(doc(db, "menus", id));
-            Swal.fire('ลบแล้ว', '', 'success');
-        }
+    window.deleteMenu = async (id) => {
+        if(confirm('ลบเมนูนี้?')) await deleteDoc(doc(db, "menus", id));
     };
 
-    window.resetForm = () => {
-        menuForm.reset();
-        document.getElementById('editId').value = '';
-        document.getElementById('saveBtn').innerText = 'บันทึก';
-        document.getElementById('saveBtn').classList.replace('btn-warning', 'btn-success');
-        document.getElementById('cancelEdit').classList.add('d-none');
-        isEditing = false;
-    };
-
-    // ================= TABLES =================
+    // TABLE LOGIC
     const adminTableList = document.getElementById('adminTableList');
-    
     onSnapshot(collection(db, "tables"), (snapshot) => {
         adminTableList.innerHTML = '';
         snapshot.forEach(docSnap => {
             const t = docSnap.data();
             adminTableList.innerHTML += `
                 <div class="col-md-3 mb-3">
-                    <div class="card shadow-sm">
-                        <div class="card-body text-center">
-                            <h5>${docSnap.id}</h5>
-                            <span class="badge ${t.status==='open'?'bg-success':'bg-secondary'} mb-2">${t.status}</span>
-                            <br>
-                            ${t.status==='open' ? `<button class="btn btn-sm btn-outline-danger" onclick="window.forceCloseTable('${docSnap.id}')">Force Reset</button>` : ''}
-                            <button class="btn btn-sm btn-danger" onclick="window.deleteTable('${docSnap.id}')">ลบโต๊ะ</button>
-                        </div>
+                    <div class="card shadow-sm text-center p-3">
+                        <h5>${docSnap.id}</h5>
+                        <span class="badge ${t.status==='open'?'bg-success':'bg-secondary'} mb-2">${t.status}</span>
+                        <button class="btn btn-sm btn-danger" onclick="window.deleteTable('${docSnap.id}')">ลบ</button>
                     </div>
-                </div>
-            `;
+                </div>`;
         });
     });
 
     window.addTable = async () => {
         const name = document.getElementById('newTableName').value;
-        if(!name) return Swal.fire('ระบุชื่อโต๊ะ');
-        // ใช้ setDoc เพื่อกำหนด ID เอง
-        await setDoc(doc(db, "tables", name), { status: 'closed', sessionId: '' });
+        if(!name) return Swal.fire('ใส่ชื่อโต๊ะ');
+        await setDoc(doc(db, "tables", name), { status: 'closed', sessionId: '', requestBill: false });
         document.getElementById('newTableName').value = '';
-        Swal.fire('เพิ่มโต๊ะสำเร็จ');
     };
+    window.deleteTable = async (id) => { if(confirm('ลบโต๊ะ?')) await deleteDoc(doc(db, "tables", id)); };
 
-    window.deleteTable = async (id) => {
-        if((await Swal.fire({title:`ยืนยันลบ ${id}?`, icon:'warning', showCancelButton:true})).isConfirmed){
-            await deleteDoc(doc(db, "tables", id));
-        }
-    };
-
-    window.forceCloseTable = async (id) => {
-        await updateDoc(doc(db, "tables", id), { status: 'closed', sessionId: '' });
-        Swal.fire('Reset เรียบร้อย');
-    };
-
-    // ================= HISTORY =================
+    // HISTORY LOGIC
     const historyTableBody = document.getElementById('historyTableBody');
-
     const qHistory = query(collection(db, "history"), orderBy("timestamp", "desc"));
     onSnapshot(qHistory, (snapshot) => {
         historyTableBody.innerHTML = '';
         snapshot.forEach(docSnap => {
             const h = docSnap.data();
             const date = new Date(h.timestamp).toLocaleString('th-TH');
-            const items = h.items.map(i => `${i.menuName} (x${i.qty})`).join(', ');
-            historyTableBody.innerHTML += `
-                <tr>
-                    <td><small>${date}</small></td>
-                    <td>${h.tableName}</td>
-                    <td><small>${items}</small></td>
-                    <td><strong>${h.total}</strong></td>
-                </tr>
-            `;
+            historyTableBody.innerHTML += `<tr><td><small>${date}</small></td><td>${h.tableName}</td><td><strong>${h.total}</strong></td></tr>`;
         });
     });
-    
     window.clearHistory = async () => {
-         if((await Swal.fire({title:`ล้างประวัติทั้งหมด?`, text:'กู้คืนไม่ได้นะ', icon:'warning', showCancelButton:true})).isConfirmed){
+         if(confirm('ล้างประวัติทั้งหมด?')) {
              const snap = await getDocs(collection(db, "history"));
              snap.forEach(d => deleteDoc(d.ref));
-             Swal.fire('ล้างเรียบร้อย');
          }
     };
-
-    // 🔒 Simple Security (Optional)
-    // ใส่รหัสง่ายๆ กันลูกค้ากดเล่น (ถ้าไม่ต้องการให้ลบบรรทัดนี้ออก)
-    window.onload = async () => {
-        const { value: pass } = await Swal.fire({
-            title: 'ใส่รหัส Admin',
-            input: 'password',
-            inputPlaceholder: 'รหัสผ่าน (ตั้งเองในใจ เช่น 1234)',
-            allowOutsideClick: false,
-            showCancelButton: false
-        });
-        // ตรงนี้ผมไม่ได้ล็อคจริงจังนะครับ แค่กันคนทั่วไปกดเข้า
-        // ถ้าอยากล็อคจริง ให้เปลี่ยน if(true) เป็น if(pass === '1234')
-    };
-
 </script>
 </body>
 </html>
