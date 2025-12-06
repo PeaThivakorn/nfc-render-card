@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS System - ร้านอาหาร</title>
+    <title>POS System - ร้านข้าวมันไก่</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -17,9 +17,10 @@
 <body class="bg-light p-3">
 
 <div class="container">
-    <h2 class="mb-4">🏠 จัดการโต๊ะอาหาร</h2>
+    <h2 class="mb-4">🔥 ร้านข้าวมันไก่ (POS System)</h2>
     <div class="row" id="tables-container">
-        </div>
+        <div class="text-center py-5">กำลังโหลดข้อมูลโต๊ะ...</div>
+    </div>
 </div>
 
 <div class="modal fade" id="tableModal" tabindex="-1">
@@ -31,28 +32,25 @@
             </div>
             <div class="modal-body">
                 <div id="openSection" class="text-center d-none">
-                    <button class="btn btn-primary btn-lg" onclick="openTableAction()">🔵 เปิดโต๊ะ</button>
+                    <button class="btn btn-primary btn-lg" onclick="openTable()">🔵 เปิดโต๊ะ</button>
                 </div>
-
                 <div id="activeSection" class="d-none">
-                    <div class="row mb-3">
+                    <div class="row">
                         <div class="col-md-4 text-center">
-                            <div id="qrcode" class="mb-2 d-flex justify-content-center"></div>
-                            <small class="text-muted">Session: <span id="currentSession"></span></small><br>
-                            <a id="customerLink" href="#" target="_blank" class="btn btn-sm btn-outline-info mt-2">ลิงก์ลูกค้า</a>
+                            <div id="qrcode" class="d-flex justify-content-center mb-2"></div>
+                            <a id="customerLink" href="#" target="_blank" class="btn btn-sm btn-outline-info">ลิงก์ลูกค้า</a>
+                            <div class="mt-2 text-muted small">Session: <span id="sessionDisplay"></span></div>
                         </div>
                         <div class="col-md-8">
-                            <h5>รายการสั่งอาหาร</h5>
-                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                                <table class="table table-sm">
+                            <h5>รายการสั่งอาหาร (Realtime)</h5>
+                            <div class="table-responsive" style="max-height:300px; overflow-y:auto;">
+                                <table class="table table-sm text-center">
                                     <thead><tr><th>เมนู</th><th>จำนวน</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
                                     <tbody id="orderList"></tbody>
                                 </table>
                             </div>
+                            <button class="btn btn-danger w-100 mt-2" onclick="closeTable()">💰 เช็คบิล / ปิดโต๊ะ</button>
                         </div>
-                    </div>
-                    <div class="d-grid gap-2">
-                         <button class="btn btn-danger" onclick="closeTableAction()">💰 เช็คบิล / ปิดโต๊ะ</button>
                     </div>
                 </div>
             </div>
@@ -62,163 +60,221 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbweC8LP3oZc0_E2a58xUgVkyouY4aysNyykqj80eNil_FSwlcXn1vy2AT7dI5AnXcAieg/exec';
-const CUSTOMER_URL = 'https://nfc-render-card.onrender.com/approve.html';
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, doc, updateDoc, onSnapshot, query, where, getDocs, deleteDoc, addDoc, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const tables = ['Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5', 'Table 6'];
-let currentTable = '';
-let currentSession = '';
-let statusInterval;
+    // 🔥 Config ของคุณใส่ให้แล้วครับ
+    const firebaseConfig = {
+        apiKey: "AIzaSyCFShJHMyBdibWqtC9C-7UECOe49CRXUr4",
+        authDomain: "khao-man-gai.firebaseapp.com",
+        projectId: "khao-man-gai",
+        storageBucket: "khao-man-gai.firebasestorage.app",
+        messagingSenderId: "395966701230",
+        appId: "1:395966701230:web:b570681a143e658934d73f",
+        measurementId: "G-3PVW3CCT8C"
+    };
 
-document.addEventListener('DOMContentLoaded', () => {
-    renderTables();
-});
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const CUSTOMER_URL = 'https://nfc-render-card.onrender.com/approve.html'; 
 
-function renderTables() {
+    let currentTable = '';
+    let currentSession = '';
+    let unsubscribeOrders = null;
+
+    // 1. โหลดโต๊ะและฟังสถานะ Realtime
+    const tables = ['Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5', 'Table 6'];
     const container = document.getElementById('tables-container');
+    
+    // สร้าง Card โต๊ะรอไว้ก่อน
     container.innerHTML = '';
     tables.forEach(t => {
-        const col = document.createElement('div');
-        col.className = 'col-6 col-md-4 mb-3';
-        col.innerHTML = `
-            <div class="card table-card text-center p-4 shadow-sm" onclick="clickTable('${t}')">
-                <h3>🍽️ ${t}</h3>
-                <small class="text-muted">คลิกเพื่อจัดการ</small>
+        const safeId = t.replace(/\s+/g, '-');
+        container.innerHTML += `
+            <div class="col-6 col-md-4 mb-3">
+                <div class="card table-card text-center p-4 shadow-sm" id="card-${safeId}" onclick="clickTable('${t}')">
+                    <h3>🍽️ ${t}</h3>
+                    <small id="status-${safeId}" class="text-muted">Loading...</small>
+                </div>
             </div>
         `;
-        container.appendChild(col);
     });
-}
 
-async function clickTable(tableName) {
-    currentTable = tableName;
-    const storedSession = localStorage.getItem('pos_session_' + tableName);
-    
-    // ตรงนี้ที่เคย error จะหายแล้วเพราะ import script bootstrap มาแล้ว
-    const modal = new bootstrap.Modal(document.getElementById('tableModal'));
-    document.getElementById('modalTitle').innerText = tableName;
-    modal.show();
-    
-    if (storedSession) {
-        const res = await fetch(APPS_SCRIPT_URL + '?action=getTableStatus&sessionId=' + storedSession).then(r=>r.json());
-        if(res.active) {
-            currentSession = storedSession;
-            showActiveUI();
-        } else {
-            localStorage.removeItem('pos_session_' + tableName);
-            showOpenUI();
-        }
-    } else {
-        showOpenUI();
-    }
-}
-
-function showOpenUI() {
-    document.getElementById('openSection').classList.remove('d-none');
-    document.getElementById('activeSection').classList.add('d-none');
-    clearInterval(statusInterval);
-}
-
-function showActiveUI() {
-    document.getElementById('openSection').classList.add('d-none');
-    document.getElementById('activeSection').classList.remove('d-none');
-    document.getElementById('currentSession').innerText = currentSession;
-    
-    const url = `${CUSTOMER_URL}?id=${currentSession}&table=${encodeURIComponent(currentTable)}`;
-    document.getElementById('qrcode').innerHTML = "";
-    new QRCode(document.getElementById("qrcode"), { text: url, width: 128, height: 128 });
-    document.getElementById('customerLink').href = url;
-
-    loadOrders();
-    statusInterval = setInterval(loadOrders, 10000); 
-}
-
-async function openTableAction() {
-    Swal.fire({ title: 'กำลังเปิดโต๊ะ...', didOpen: () => Swal.showLoading() });
-    
-    const res = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'openTable', tableName: currentTable })
-    }).then(r => r.json());
-
-    Swal.close();
-    if(res.status === 'success') {
-        currentSession = res.sessionId;
-        localStorage.setItem('pos_session_' + currentTable, currentSession);
-        showActiveUI();
-    }
-}
-
-async function loadOrders() {
-    if(!currentSession) return;
-    const res = await fetch(APPS_SCRIPT_URL + '?action=getOrders&sessionId=' + currentSession).then(r => r.json());
-    
-    const tbody = document.getElementById('orderList');
-    tbody.innerHTML = '';
-    
-    if(res.data && res.data.length > 0) {
-        res.data.forEach(item => {
-            let badge = 'bg-secondary';
-            if(item.status === 'กำลังทำ') badge = 'bg-warning text-dark';
-            if(item.status === 'เสิร์ฟแล้ว') badge = 'bg-success';
-            if(item.status === 'ยกเลิก') badge = 'bg-danger';
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${item.menu}</td>
-                <td>${item.qty}</td>
-                <td><span class="badge ${badge}">${item.status}</span></td>
-                <td>
-                    ${item.status === 'รอทำ' ? `<button class="btn btn-sm btn-warning" onclick="updateStatus('${item.orderId}', 'กำลังทำ')">ทำ</button>` : ''}
-                    ${item.status === 'กำลังทำ' ? `<button class="btn btn-sm btn-success" onclick="updateStatus('${item.orderId}', 'เสิร์ฟแล้ว')">เสิร์ฟ</button>` : ''}
-                    ${item.status !== 'เสิร์ฟแล้ว' && item.status !== 'ยกเลิก' ? `<button class="btn btn-sm btn-outline-danger" onclick="updateStatus('${item.orderId}', 'ยกเลิก')">X</button>` : ''}
-                </td>
-            `;
-            tbody.appendChild(tr);
+    // ฟังสถานะโต๊ะจาก Firebase (ถ้าใน Database มีข้อมูลแล้วจะอัปเดตทันที)
+    onSnapshot(collection(db, "tables"), (snapshot) => {
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            const safeId = doc.id.replace(/\s+/g, '-');
+            const card = document.getElementById(`card-${safeId}`);
+            const statusText = document.getElementById(`status-${safeId}`);
+            
+            if(card && statusText) {
+                if(data.status === 'open') {
+                    card.classList.add('bg-open', 'border-success');
+                    card.classList.remove('bg-closed');
+                    statusText.innerText = 'ลูกค้ากำลังทาน';
+                    statusText.classList.add('text-success');
+                } else {
+                    card.classList.remove('bg-open', 'border-success');
+                    card.classList.add('bg-closed');
+                    statusText.innerText = 'ว่าง';
+                    statusText.classList.remove('text-success');
+                }
+            }
         });
-    } else {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center">ยังไม่มีออเดอร์</td></tr>';
-    }
-}
-
-async function updateStatus(orderId, status) {
-    await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'updateOrderStatus', orderId: orderId, status: status })
-    });
-    loadOrders();
-}
-
-async function closeTableAction() {
-    const result = await Swal.fire({
-        title: 'ยืนยันปิดโต๊ะ?',
-        text: "ระบบจะคำนวณเงินและปิด Session นี้",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'ปิดโต๊ะ/เช็คบิล'
     });
 
-    if (result.isConfirmed) {
-        Swal.fire({ title: 'กำลังคำนวณ...', didOpen: () => Swal.showLoading() });
-        const res = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'closeTable', tableName: currentTable, sessionId: currentSession })
-        }).then(r => r.json());
+    // Expose Functions to Window
+    window.clickTable = (tableName) => {
+        currentTable = tableName;
+        const modal = new bootstrap.Modal(document.getElementById('tableModal'));
+        document.getElementById('modalTitle').innerText = tableName;
+        
+        if(unsubscribeOrders) unsubscribeOrders();
 
-        if(res.status === 'success') {
-            localStorage.removeItem('pos_session_' + currentTable);
-            clearInterval(statusInterval);
-            Swal.fire('เรียบร้อย', `ยอดรวมทั้งหมด: ${res.total} บาท`, 'success').then(() => {
-                location.reload(); 
+        // ฟังสถานะเฉพาะโต๊ะที่กด
+        onSnapshot(doc(db, "tables", tableName), (docSnap) => {
+             if (docSnap.exists()) {
+                 const data = docSnap.data();
+                 if(data && data.status === 'open') {
+                     currentSession = data.sessionId;
+                     showActiveUI();
+                 } else {
+                     showOpenUI();
+                 }
+             } else {
+                 // ถ้ายังไม่มี document ใน DB (กรณีลืมสร้าง)
+                 console.warn("Table not found in DB. Please create document ID: " + tableName);
+                 showOpenUI();
+             }
+         });
+
+        modal.show();
+    };
+
+    window.openTable = async () => {
+        Swal.fire({title: 'กำลังเปิดโต๊ะ...', didOpen: () => Swal.showLoading()});
+        const sessionId = Math.random().toString(36).substring(2, 10).toUpperCase();
+        
+        try {
+            await updateDoc(doc(db, "tables", currentTable), {
+                status: 'open',
+                sessionId: sessionId,
+                openTime: new Date().toISOString()
             });
+            Swal.close();
+        } catch (error) {
+            Swal.fire('Error', 'ไม่พบข้อมูลโต๊ะใน Database<br>กรุณาสร้าง Document ID: ' + currentTable + ' ใน Collection "tables" ก่อน', 'error');
         }
-    }
-}
+    };
 
-document.getElementById('tableModal').addEventListener('hidden.bs.modal', function () {
-  clearInterval(statusInterval);
-});
+    window.closeTable = async () => {
+        const result = await Swal.fire({
+            title: 'ยืนยันปิดโต๊ะ?',
+            text: "ระบบจะรวมยอดและเคลียร์โต๊ะ",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'ปิดโต๊ะ/เช็คบิล'
+        });
+
+        if (!result.isConfirmed) return;
+        
+        Swal.fire({title: 'กำลังคำนวณ...', didOpen: () => Swal.showLoading()});
+
+        // 1. รวมยอด
+        const q = query(collection(db, "orders"), where("sessionId", "==", currentSession));
+        const querySnapshot = await getDocs(q);
+        let total = 0;
+        let items = [];
+        const batchPromises = [];
+        
+        querySnapshot.forEach((docSnap) => {
+            const d = docSnap.data();
+            if(d.status !== 'ยกเลิก') {
+                total += (Number(d.price) * Number(d.qty));
+                items.push(d);
+            }
+            batchPromises.push(deleteDoc(docSnap.ref)); // ลบออเดอร์
+        });
+
+        await Promise.all(batchPromises);
+
+        // 2. บันทึก History
+        await addDoc(collection(db, "history"), {
+            tableName: currentTable,
+            sessionId: currentSession,
+            total: total,
+            items: items,
+            timestamp: new Date().toISOString()
+        });
+
+        // 3. ปิดโต๊ะ
+        await updateDoc(doc(db, "tables", currentTable), {
+            status: 'closed',
+            sessionId: '',
+            openTime: ''
+        });
+        
+        Swal.fire('ปิดโต๊ะสำเร็จ', `ยอดรวมทั้งหมด ${total} บาท`, 'success').then(() => {
+            bootstrap.Modal.getInstance(document.getElementById('tableModal')).hide();
+        });
+    };
+
+    window.updateStatus = async (orderId, status) => {
+        await updateDoc(doc(db, "orders", orderId), { status: status });
+    };
+
+    function showOpenUI() {
+        document.getElementById('openSection').classList.remove('d-none');
+        document.getElementById('activeSection').classList.add('d-none');
+    }
+
+    function showActiveUI() {
+        document.getElementById('openSection').classList.add('d-none');
+        document.getElementById('activeSection').classList.remove('d-none');
+        document.getElementById('sessionDisplay').innerText = currentSession;
+        
+        // Gen QR
+        const url = `${CUSTOMER_URL}?id=${currentSession}&table=${encodeURIComponent(currentTable)}`;
+        document.getElementById('qrcode').innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), { text: url, width: 128, height: 128 });
+        document.getElementById('customerLink').href = url;
+
+        // 🔥 Realtime Orders Listener
+        const q = query(collection(db, "orders"), where("sessionId", "==", currentSession), orderBy("timestamp", "desc"));
+        unsubscribeOrders = onSnapshot(q, (snapshot) => {
+            const tbody = document.getElementById('orderList');
+            tbody.innerHTML = '';
+            
+            if (snapshot.empty) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-muted">ยังไม่มีออเดอร์</td></tr>';
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const item = doc.data();
+                const id = doc.id;
+                let badge = 'bg-secondary';
+                if(item.status === 'กำลังทำ') badge = 'bg-warning text-dark';
+                if(item.status === 'เสิร์ฟแล้ว') badge = 'bg-success';
+                if(item.status === 'ยกเลิก') badge = 'bg-danger';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${item.menuName}</td>
+                        <td>${item.qty}</td>
+                        <td><span class="badge ${badge}">${item.status}</span></td>
+                        <td>
+                             ${item.status === 'รอทำ' ? `<button class="btn btn-sm btn-warning" onclick="updateStatus('${id}', 'กำลังทำ')">ทำ</button>` : ''}
+                             ${item.status === 'กำลังทำ' ? `<button class="btn btn-sm btn-success" onclick="updateStatus('${id}', 'เสิร์ฟแล้ว')">เสิร์ฟ</button>` : ''}
+                             ${item.status !== 'เสิร์ฟแล้ว' && item.status !== 'ยกเลิก' ? `<button class="btn btn-sm btn-outline-danger" onclick="updateStatus('${id}', 'ยกเลิก')">X</button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+    }
 </script>
 </body>
 </html>
