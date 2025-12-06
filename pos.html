@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        .table-card { cursor: pointer; transition: 0.3s; }
+        .table-card:hover { transform: translateY(-5px); }
+        .bg-open { background-color: #d4edda; border-color: #c3e6cb; }
+        .bg-closed { background-color: #f8f9fa; border-color: #dee2e6; }
+    </style>
+</head>
+<body class="bg-light p-3">
+
+<div class="container">
+    <h2 class="mb-4">🏠 จัดการโต๊ะอาหาร</h2>
+    <div class="row" id="tables-container">
+        </div>
+</div>
+
+<div class="modal fade" id="tableModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Table Detail</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="openSection" class="text-center d-none">
+                    <button class="btn btn-primary btn-lg" onclick="openTableAction()">🔵 เปิดโต๊ะ</button>
+                </div>
+
+                <div id="activeSection" class="d-none">
+                    <div class="row mb-3">
+                        <div class="col-md-4 text-center">
+                            <div id="qrcode" class="mb-2 d-flex justify-content-center"></div>
+                            <small class="text-muted">Session: <span id="currentSession"></span></small><br>
+                            <a id="customerLink" href="#" target="_blank" class="btn btn-sm btn-outline-info mt-2">ลิงก์ลูกค้า</a>
+                        </div>
+                        <div class="col-md-8">
+                            <h5>รายการสั่งอาหาร</h5>
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm">
+                                    <thead><tr><th>เมนู</th><th>จำนวน</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                                    <tbody id="orderList"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                         <button class="btn btn-danger" onclick="closeTableAction()">💰 เช็คบิล / ปิดโต๊ะ</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbweC8LP3oZc0_E2a58xUgVkyouY4aysNyykqj80eNil_FSwlcXn1vy2AT7dI5AnXcAieg/exec'; // 🔥 ใส่ URL ที่ได้จากการ Deploy
+const CUSTOMER_URL = window.location.href.replace('pos.html', 'approve.html'); // สมมติว่าไฟล์อยู่โฟลเดอร์เดียวกัน
+
+const tables = ['Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5', 'Table 6'];
+let currentTable = '';
+let currentSession = '';
+let statusInterval;
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+    renderTables();
+});
+
+function renderTables() {
+    const container = document.getElementById('tables-container');
+    container.innerHTML = '';
+    tables.forEach(t => {
+        // ในระบบจริงควรโหลดสถานะจาก API มาแสดงสีปุ่ม แต่เพื่อความง่ายใช้ LocalStorage จำลอง หรือคลิกแล้วค่อยเช็ก
+        // หรือจะแก้ให้ API getTableStatus รับ param เป็น 'all' เพื่อดึงสถานะทุกโต๊ะก็ได้
+        // ตรงนี้ทำแบบ Simple: คลิกแล้วค่อยโหลด
+        const col = document.createElement('div');
+        col.className = 'col-6 col-md-4 mb-3';
+        col.innerHTML = `
+            <div class="card table-card text-center p-4 shadow-sm" onclick="clickTable('${t}')">
+                <h3>🍽️ ${t}</h3>
+                <small class="text-muted">คลิกเพื่อจัดการ</small>
+            </div>
+        `;
+        container.appendChild(col);
+    });
+}
+
+async function clickTable(tableName) {
+    currentTable = tableName;
+    // Check Session stored in backend (Wait for fetch in real world, here simplified)
+    // Actually we need to check if this table has an active session. 
+    // Since we don't have 'getAllTablesStatus' API in the requirements, 
+    // we will check via UI flow: When opened, we assume closed unless we have session stored.
+    // **Better approach:** Since we can't scan all tables easily without new API, 
+    // let's rely on the User to know, OR (hack) try to find active session from a local list?
+    // No, let's just show the Modal and let the user decide or load data if exists.
+    
+    // *Correction*: The prompt asked "getOrders" by session. 
+    // For POS to know if table is open, we need the session ID. 
+    // Let's create a Helper function in JS to manage this state or add a new API?
+    // No, let's use the 'Tables_Status' concept. We don't have an API to "Get Session by TableName".
+    // Wait, `openTable` checks if open. `closeTable` needs name.
+    // Let's add a small logic: When clicking table, we need to know its SessionID.
+    // **WORKAROUND for this example**: Store table sessions in localStorage of the POS machine.
+    
+    const storedSession = localStorage.getItem('pos_session_' + tableName);
+    
+    const modal = new bootstrap.Modal(document.getElementById('tableModal'));
+    document.getElementById('modalTitle').innerText = tableName;
+    modal.show();
+    
+    if (storedSession) {
+        // Validate if still valid
+        const res = await fetch(APPS_SCRIPT_URL + '?action=getTableStatus&sessionId=' + storedSession).then(r=>r.json());
+        if(res.active) {
+            currentSession = storedSession;
+            showActiveUI();
+        } else {
+            localStorage.removeItem('pos_session_' + tableName);
+            showOpenUI();
+        }
+    } else {
+        showOpenUI();
+    }
+}
+
+function showOpenUI() {
+    document.getElementById('openSection').classList.remove('d-none');
+    document.getElementById('activeSection').classList.add('d-none');
+    clearInterval(statusInterval);
+}
+
+function showActiveUI() {
+    document.getElementById('openSection').classList.add('d-none');
+    document.getElementById('activeSection').classList.remove('d-none');
+    document.getElementById('currentSession').innerText = currentSession;
+    
+    // Generate QR
+    const url = `${CUSTOMER_URL}?id=${currentSession}&table=${encodeURIComponent(currentTable)}`;
+    document.getElementById('qrcode').innerHTML = "";
+    new QRCode(document.getElementById("qrcode"), { text: url, width: 128, height: 128 });
+    document.getElementById('customerLink').href = url;
+
+    // Polling Orders
+    loadOrders();
+    statusInterval = setInterval(loadOrders, 10000); // Refresh every 10s
+}
+
+async function openTableAction() {
+    Swal.fire({ title: 'กำลังเปิดโต๊ะ...', didOpen: () => Swal.showLoading() });
+    
+    const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'openTable', tableName: currentTable })
+    }).then(r => r.json());
+
+    Swal.close();
+    if(res.status === 'success') {
+        currentSession = res.sessionId;
+        localStorage.setItem('pos_session_' + currentTable, currentSession);
+        showActiveUI();
+    }
+}
+
+async function loadOrders() {
+    if(!currentSession) return;
+    const res = await fetch(APPS_SCRIPT_URL + '?action=getOrders&sessionId=' + currentSession).then(r => r.json());
+    
+    const tbody = document.getElementById('orderList');
+    tbody.innerHTML = '';
+    
+    if(res.data && res.data.length > 0) {
+        res.data.forEach(item => {
+            let badge = 'bg-secondary';
+            if(item.status === 'กำลังทำ') badge = 'bg-warning text-dark';
+            if(item.status === 'เสิร์ฟแล้ว') badge = 'bg-success';
+            if(item.status === 'ยกเลิก') badge = 'bg-danger';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.menu}</td>
+                <td>${item.qty}</td>
+                <td><span class="badge ${badge}">${item.status}</span></td>
+                <td>
+                    ${item.status === 'รอทำ' ? `<button class="btn btn-sm btn-warning" onclick="updateStatus('${item.orderId}', 'กำลังทำ')">ทำ</button>` : ''}
+                    ${item.status === 'กำลังทำ' ? `<button class="btn btn-sm btn-success" onclick="updateStatus('${item.orderId}', 'เสิร์ฟแล้ว')">เสิร์ฟ</button>` : ''}
+                    ${item.status !== 'เสิร์ฟแล้ว' && item.status !== 'ยกเลิก' ? `<button class="btn btn-sm btn-outline-danger" onclick="updateStatus('${item.orderId}', 'ยกเลิก')">X</button>` : ''}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } else {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center">ยังไม่มีออเดอร์</td></tr>';
+    }
+}
+
+async function updateStatus(orderId, status) {
+    await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'updateOrderStatus', orderId: orderId, status: status })
+    });
+    loadOrders();
+}
+
+async function closeTableAction() {
+    const result = await Swal.fire({
+        title: 'ยืนยันปิดโต๊ะ?',
+        text: "ระบบจะคำนวณเงินและปิด Session นี้",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ปิดโต๊ะ/เช็คบิล'
+    });
+
+    if (result.isConfirmed) {
+        Swal.fire({ title: 'กำลังคำนวณ...', didOpen: () => Swal.showLoading() });
+        const res = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'closeTable', tableName: currentTable, sessionId: currentSession })
+        }).then(r => r.json());
+
+        if(res.status === 'success') {
+            localStorage.removeItem('pos_session_' + currentTable);
+            clearInterval(statusInterval);
+            Swal.fire('เรียบร้อย', `ยอดรวมทั้งหมด: ${res.total} บาท`, 'success').then(() => {
+                location.reload(); // Reload to reset modal
+            });
+        }
+    }
+}
+
+// Stop interval when modal closes
+document.getElementById('tableModal').addEventListener('hidden.bs.modal', function () {
+  clearInterval(statusInterval);
+});
+</script>
+</body>
+</html>

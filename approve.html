@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สั่งอาหาร</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .floating-cart {
+            position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+            background: #ff5722; color: white; padding: 15px; border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-light pb-5">
+
+<div class="container mt-3">
+    <h4 id="tableHeader">👋 ยินดีต้อนรับ</h4>
+    <hr>
+    
+    <div id="menu-container" class="row">
+        <div class="text-center py-5"><div class="spinner-border"></div></div>
+    </div>
+
+    <div class="mt-5">
+        <h5>📋 รายการที่สั่งไปแล้ว</h5>
+        <div id="order-status-container" class="list-group">
+            </div>
+        <button class="btn btn-outline-danger w-100 mt-3" onclick="requestBill()">เรียกเก็บเงิน / Check Bill</button>
+    </div>
+</div>
+
+<div class="floating-cart" onclick="showCart()">
+    <i class="fas fa-shopping-cart"></i> <span id="cartCount">0</span>
+</div>
+
+<div class="modal fade" id="cartModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">ตะกร้าของคุณ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul id="cartList" class="list-group mb-3"></ul>
+                <div class="d-flex justify-content-between">
+                    <strong>รวม</strong>
+                    <strong id="cartTotal">0</strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="clearCart()">ล้างตะกร้า</button>
+                <button type="button" class="btn btn-primary" onclick="confirmOrder()">ยืนยันการสั่ง</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbweC8LP3oZc0_E2a58xUgVkyouY4aysNyykqj80eNil_FSwlcXn1vy2AT7dI5AnXcAieg/exec'; // 🔥 ใส่ URL เดียวกันกับ POS
+
+// Get Params
+const urlParams = new URLSearchParams(window.location.search);
+const sessionId = urlParams.get('id');
+const tableName = urlParams.get('table');
+
+let cart = JSON.parse(localStorage.getItem('cart_' + sessionId)) || [];
+let menuData = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+    if(!sessionId) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'ไม่พบข้อมูลโต๊ะ (No Session ID)' });
+        return;
+    }
+    
+    document.getElementById('tableHeader').innerText = `👋 ${tableName || 'ลูกค้า'}`;
+    updateCartUI();
+
+    // Check Session Validity
+    const status = await fetch(`${APPS_SCRIPT_URL}?action=getTableStatus&sessionId=${sessionId}`).then(r=>r.json());
+    if(!status.active) {
+        Swal.fire({ icon: 'error', title: 'QR Code หมดอายุ', text: 'กรุณาติดต่อพนักงาน', allowOutsideClick: false });
+        document.body.innerHTML = '<div class="text-center mt-5"><h3>⛔ QR Code หมดอายุ</h3></div>';
+        return;
+    }
+
+    loadMenu();
+    loadOrders();
+    setInterval(loadOrders, 10000); // Poll status every 10s
+});
+
+async function loadMenu() {
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=getMenu`).then(r=>r.json());
+    menuData = res.data;
+    const container = document.getElementById('menu-container');
+    container.innerHTML = '';
+
+    menuData.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'col-6 col-md-4 mb-3';
+        div.innerHTML = `
+            <div class="card h-100 shadow-sm">
+                <div class="card-body p-2 text-center">
+                    <h6 class="card-title">${m.name}</h6>
+                    <p class="text-success fw-bold">${m.price}.-</p>
+                    <button class="btn btn-sm btn-outline-primary w-100" onclick="addToCart('${m.id}')">ใส่ตะกร้า</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function addToCart(menuId) {
+    const item = menuData.find(m => m.id === menuId);
+    const existing = cart.find(c => c.id === menuId);
+    
+    if(existing) {
+        existing.qty++;
+    } else {
+        cart.push({ ...item, qty: 1 });
+    }
+    
+    saveCart();
+    const toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+    toast.fire({ icon: 'success', title: 'เพิ่มลงตะกร้าแล้ว' });
+}
+
+function saveCart() {
+    localStorage.setItem('cart_' + sessionId, JSON.stringify(cart));
+    updateCartUI();
+}
+
+function updateCartUI() {
+    document.getElementById('cartCount').innerText = cart.reduce((sum, item) => sum + item.qty, 0);
+}
+
+function showCart() {
+    const list = document.getElementById('cartList');
+    list.innerHTML = '';
+    let total = 0;
+
+    cart.forEach((item, index) => {
+        total += item.price * item.qty;
+        list.innerHTML += `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>${item.name} <small class="text-muted">x${item.qty}</small></div>
+                <div>
+                    <span>${item.price * item.qty}</span>
+                    <button class="btn btn-sm text-danger" onclick="removeFromCart(${index})">x</button>
+                </div>
+            </li>
+        `;
+    });
+    document.getElementById('cartTotal').innerText = total + ' บาท';
+    new bootstrap.Modal(document.getElementById('cartModal')).show();
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    saveCart();
+    showCart(); // Refresh modal
+}
+
+function clearCart() {
+    cart = [];
+    saveCart();
+    bootstrap.Modal.getInstance(document.getElementById('cartModal')).hide();
+}
+
+async function confirmOrder() {
+    if(cart.length === 0) return;
+
+    bootstrap.Modal.getInstance(document.getElementById('cartModal')).hide();
+    Swal.fire({ title: 'กำลังส่งออเดอร์...', didOpen: () => Swal.showLoading() });
+
+    const payload = {
+        action: 'saveOrder',
+        sessionId: sessionId,
+        items: cart.map(c => ({ name: c.name, qty: c.qty, price: c.price }))
+    };
+
+    const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+    }).then(r => r.json());
+
+    if(res.status === 'success') {
+        cart = []; // Clear cart after success
+        saveCart();
+        Swal.fire('สำเร็จ', 'ส่งออเดอร์เรียบร้อยแล้ว', 'success');
+        loadOrders();
+    } else {
+        Swal.fire('ผิดพลาด', res.message || 'ส่งไม่สำเร็จ', 'error');
+    }
+}
+
+async function loadOrders() {
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=getOrders&sessionId=${sessionId}`).then(r => r.json());
+    const container = document.getElementById('order-status-container');
+    container.innerHTML = '';
+
+    if(res.data && res.data.length > 0) {
+        res.data.reverse().forEach(o => {
+            let badge = 'text-bg-secondary';
+            if(o.status === 'กำลังทำ') badge = 'text-bg-warning';
+            if(o.status === 'เสิร์ฟแล้ว') badge = 'text-bg-success';
+            
+            container.innerHTML += `
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">${o.menu} (x${o.qty})</h6>
+                        <span class="badge ${badge}">${o.status}</span>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        container.innerHTML = '<div class="text-muted text-center">ยังไม่ได้สั่งอาหาร</div>';
+    }
+}
+
+function requestBill() {
+    Swal.fire({
+        title: 'เรียกเก็บเงิน?',
+        text: 'กรุณารอพนักงานที่โต๊ะ',
+        icon: 'info',
+        confirmButtonText: 'ตกลง'
+    });
+    // ในระบบจริงอาจจะยิง API แจ้งเตือน POS แต่ใน Requirement ให้แค่ "ผู้ใช้ไปชำระที่เคาน์เตอร์" หรือแจ้งหน้า POS
+    // เราสามารถใช้ Swal แจ้งเตือนเฉยๆ ตาม requirement 2.5
+}
+</script>
+</body>
+</html>>
