@@ -60,9 +60,9 @@
 </div>
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbweC8LP3oZc0_E2a58xUgVkyouY4aysNyykqj80eNil_FSwlcXn1vy2AT7dI5AnXcAieg/exec'; // 🔥 ใส่ URL เดียวกันกับ POS
+// 🔥 อัปเดตลิงก์ให้เรียบร้อยแล้ว
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzZTg38w_qVdq6c1m9HU-K7fW0xqepWS_ufjS9kJAEh0B-q1Mfe4RUhSk0-AauLhjrKzg/exec';
 
-// Get Params
 const urlParams = new URLSearchParams(window.location.search);
 const sessionId = urlParams.get('id');
 const tableName = urlParams.get('table');
@@ -79,7 +79,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('tableHeader').innerText = `👋 ${tableName || 'ลูกค้า'}`;
     updateCartUI();
 
-    // Check Session Validity
     const status = await fetch(`${APPS_SCRIPT_URL}?action=getTableStatus&sessionId=${sessionId}`).then(r=>r.json());
     if(!status.active) {
         Swal.fire({ icon: 'error', title: 'QR Code หมดอายุ', text: 'กรุณาติดต่อพนักงาน', allowOutsideClick: false });
@@ -89,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadMenu();
     loadOrders();
-    setInterval(loadOrders, 10000); // Poll status every 10s
+    setInterval(loadOrders, 10000); 
 });
 
 async function loadMenu() {
@@ -162,7 +161,7 @@ function showCart() {
 function removeFromCart(index) {
     cart.splice(index, 1);
     saveCart();
-    showCart(); // Refresh modal
+    showCart(); 
 }
 
 function clearCart() {
@@ -189,7 +188,7 @@ async function confirmOrder() {
     }).then(r => r.json());
 
     if(res.status === 'success') {
-        cart = []; // Clear cart after success
+        cart = []; 
         saveCart();
         Swal.fire('สำเร็จ', 'ส่งออเดอร์เรียบร้อยแล้ว', 'success');
         loadOrders();
@@ -230,9 +229,7 @@ function requestBill() {
         icon: 'info',
         confirmButtonText: 'ตกลง'
     });
-    // ในระบบจริงอาจจะยิง API แจ้งเตือน POS แต่ใน Requirement ให้แค่ "ผู้ใช้ไปชำระที่เคาน์เตอร์" หรือแจ้งหน้า POS
-    // เราสามารถใช้ Swal แจ้งเตือนเฉยๆ ตาม requirement 2.5
 }
 </script>
 </body>
-</html>>
+</html>
